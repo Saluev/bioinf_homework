@@ -1,8 +1,11 @@
 import gzip
 import re
+import sys
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import Optional, TextIO, Iterable
+from typing import Optional, TextIO, Iterable, List
+
+from tqdm import tqdm
 
 
 class Sequence(str):
@@ -55,3 +58,14 @@ def open_with_gzip(filename: str) -> TextIO:
     if filename.endswith(".gz"):
         return gzip.open(filename, mode="rt")
     return open(filename)
+
+
+def read_reads(filenames: Optional[List[str]]) -> Iterable[Read]:
+    if not filenames:
+        print(f"Processing reads from stdin...", file=sys.stderr)
+        yield from tqdm(read_fastq(sys.stdin), desc="Reads processed", unit="")
+        print(f"Finished processing reads from stdin", file=sys.stderr)
+    for filename in filenames:
+        print(f"Processing reads from file {filename}...", file=sys.stderr)
+        yield from tqdm(read_fastq(open_with_gzip(filename)), desc="Reads processed", unit="")
+        print(f"Finished processing file {filename}.", file=sys.stderr)

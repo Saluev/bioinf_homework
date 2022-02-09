@@ -1,21 +1,15 @@
 import argparse
 import sys
 from collections import defaultdict
-from itertools import chain
-from typing import Iterable
 
 from matplotlib import pyplot as plt
-from tqdm import tqdm
 
-from ngs.io import read_fastq, open_with_gzip
+from ngs.io import read_reads
 
 
 def evaluate_gc_content_distribution(filenames=None, min_base_quality="!", min_good_bases=0,
                                      min_good_bases_fraction=0.0):
-    reads = _log_progress("stdin", read_fastq(sys.stdin))
-    if filenames:
-        reads = chain.from_iterable(_log_progress(fn, read_fastq(open_with_gzip(fn))) for fn in filenames)
-
+    reads = read_reads(filenames)
     hist = defaultdict(int)
 
     good_reads = 0
@@ -47,12 +41,6 @@ def evaluate_gc_content_distribution(filenames=None, min_base_quality="!", min_g
     ax.set_xlabel('% GC')
     ax.set_ylabel('Number of reads')
     plt.show()
-
-
-def _log_progress(filename: str, iter: Iterable) -> Iterable:
-    print(f"Processing {filename}...", file=sys.stderr)
-    yield from tqdm(iter, desc="Reads processed", unit="")
-    print(f"Finished processing {filename}.", file=sys.stderr)
 
 
 parser = argparse.ArgumentParser(description='Evaluate GC content distribution.')
