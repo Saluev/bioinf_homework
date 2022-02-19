@@ -1,0 +1,98 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+Импортируем библиотеку для построения филогенетических деревьев.
+```{r}
+library(ape)
+```
+
+Парсим дерево из строки в Newick format. 
+```{r}
+simpletree <- read.tree(text = "(((A,B), (C,D)), E);")
+plot.phylo(simpletree)
+```
+
+Теперь строим с сохранением в файл.
+```{r}
+png("simpletree.png")
+plot.phylo(simpletree)
+dev.off()
+```
+
+Грузим филогенетическое дерево поинтереснее из файла (с сайта не получилось).
+```{r}
+treeoflife <- ape::read.tree("Downloads/life.txt")
+```
+
+```{r}
+plot.phylo(treeoflife)
+plot(treeoflife)
+```
+
+Строим с размером шрифта поменьше.
+```{r}
+plot.phylo(treeoflife, cex = 0.2)
+```
+
+Строим с другими опциями построения (неукоренённое и радиальное).
+```{r}
+plot.phylo(treeoflife, type = "unrooted", no.margin = T)
+plot.phylo(treeoflife, type = "radial", cex=0.2)
+```
+
+Грузим более навороченную библиотеку для визуализации.
+```{r}
+library(ggtree)
+```
+
+Строим дерево с настройками по умолчанию.
+```{r}
+ggtree(treeoflife)
+```
+
+Строим дерево с листьями.
+```{r}
+ggtree(treeoflife) + geom_tiplab(size = 1)
+```
+
+Строим с листьями и круговым лейаутом.
+```{r}
+ggtree(treeoflife) + layout_circular() + geom_tiplab(size = 2) 
+```
+
+От перемены мест слагаемых сумма меняется.
+```{r}
+ggtree(treeoflife) + geom_tiplab(size = 2) + layout_circular()
+```
+
+Подсвечиваем в дереве листья Homo sapiens и Pan troglodytes.
+```{r}
+treeoflife <- groupOTU(treeoflife, c("Homo_sapiens", "Pan_troglodytes"))
+ggtree(treeoflife) + layout_circular() + 
+  geom_tiplab2(size = 2) + geom_tippoint(aes(alpha = group), col = "red") + 
+  scale_color_manual(values = c(0,1), aesthetics = "alpha") +
+  theme(legend.position = 'null')
+```
+
+Стриом дерево, подписывая узлы их номерами.
+```{r}
+ggtree(treeoflife) + layout_circular() + geom_tiplab(size = 2) + 
+  geom_text2(aes(subset=!isTip, label=node), size = 3, col = "red")
+```
+
+Строим дерево, подсветив узел по номеру.
+```{r}
+ggtree(treeoflife) + layout_circular() + geom_tiplab2(size = 2) + 
+  geom_hilight(node = 219, fill = "gold") + 
+  geom_cladelabel(node = 219, label = "Here", fontsize = 2, offset = 1)
+```
+
+
+
+
