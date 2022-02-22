@@ -1,15 +1,26 @@
+import csv
 import gzip
 import re
 import sys
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import Optional, TextIO, Iterable, List
+from typing import Optional, TextIO, Iterable, List, Tuple
 
 from tqdm import tqdm
 
 
 class Sequence(str):
     pass
+
+
+cigar_regexp = re.compile(r"(\d+)(\w)")
+
+
+class CIGAR(str):
+    @property
+    def items(self) -> Iterable[Tuple[int, str]]:
+        for n, l in cigar_regexp.findall(self):
+            yield int(n), l
 
 
 class SequenceQuality(str):
@@ -21,11 +32,52 @@ class Read:
     identifier: str
     description: str
     sequence: Sequence
-    quality: Optional[SequenceQuality]
+    quality: Optional[SequenceQuality] = None
+
+
+@dataclass
+class Alignment:
+    identifier: str
+    reference: str
+    reference_position: int  # 0-based
+    cigar: CIGAR
+    sequence: Sequence
+    quality: Optional[SequenceQuality] = None
 
 
 sequence_regexp = re.compile(r'^([ATCGUN]+|[ACDEFGHIKLMNPQRSTVWYZ]+)$', re.IGNORECASE)
 quality_regexp = re.compile(r'^[!-~]+$')
+
+
+def read_fasta(f: TextIO) -> Iterable[Read]:
+    current_identifier = None
+    current_description = ""
+    current_sequence = []
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith(">"):
+            if current_sequence:
+                yield Read(
+                    identifier=current_identifier,
+                    description=current_description,
+                    sequence=Sequence("".join(current_sequence)),
+                )
+            current_identifier, *current_description = line.removeprefix('>').rstrip('\n\r').split(maxsplit=1)
+            current_sequence = []
+        else:
+            if current_identifier is None:
+                raise ValueError(f'expected >identifier, got {line!r}')
+            if not sequence_regexp.fullmatch(line):
+                raise ValueError(f'expected nucleotide/amino acid sequence, got {line!r}')
+            current_sequence.append(line)
+    if current_sequence:
+        yield Read(
+            identifier=current_identifier,
+            description=current_description,
+            sequence=Sequence("".join(current_sequence)),
+        )
 
 
 def read_fastq(f: TextIO) -> Iterable[Read]:
@@ -51,6 +103,28 @@ def read_fastq(f: TextIO) -> Iterable[Read]:
             description=description[0] if description else '',
             sequence=sequence,
             quality=quality,
+        )
+
+
+def read_sam(f: TextIO) -> Iterable[Alignment]:
+    for row in csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE):
+        if row[0].startswith("@"):
+            continue
+        if len(row) < 10:
+            print(row)
+        sequence = row[9]
+        if not sequence_regexp.fullmatch(sequence):
+            raise ValueError(f'expected nucleotide/amino acid sequence, got {sequence!r}')
+        quality = row[10]
+        if not quality_regexp.fullmatch(quality):
+            raise ValueError(f'expected quality string, got {quality!r}')
+        yield Alignment(
+            identifier=row[0],
+            reference=row[2],
+            reference_position=int(row[3])-1,
+            cigar=CIGAR(row[5]),
+            sequence=Sequence(sequence),
+            quality=SequenceQuality(quality),
         )
 
 
