@@ -65,7 +65,7 @@ def evaluate_mismatch_frequency(reference: str, alignment: str, homopolymer_leng
         return False
 
     for alignment in read_sam(open_with_gzip(alignment)):
-        if alignment.reference == "*":
+        if alignment.reference == "*" or alignment.sequence is None:
             continue
         contig = contigs[alignment.reference]
         alignment_offset = 0

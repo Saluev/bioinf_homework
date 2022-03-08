@@ -41,7 +41,7 @@ class Alignment:
     reference: str
     reference_position: int  # 0-based
     cigar: CIGAR
-    sequence: Sequence
+    sequence: Optional[Sequence]
     quality: Optional[SequenceQuality] = None
 
 
@@ -107,23 +107,25 @@ def read_fastq(f: TextIO) -> Iterable[Read]:
 
 
 def read_sam(f: TextIO) -> Iterable[Alignment]:
-    for row in csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE):
+    for i, row in enumerate(csv.reader(f, delimiter="\t", quoting=csv.QUOTE_NONE)):
         if row[0].startswith("@"):
             continue
         if len(row) < 10:
             print(row)
-        sequence = row[9]
-        if not sequence_regexp.fullmatch(sequence):
-            raise ValueError(f'expected nucleotide/amino acid sequence, got {sequence!r}')
+        sequence = Sequence(row[9])
+        if sequence == "*":
+            sequence = None
+        elif not sequence_regexp.fullmatch(sequence):
+            raise ValueError(f'expected nucleotide/amino acid sequence, got {sequence!r} in row {i}')
         quality = row[10]
         if not quality_regexp.fullmatch(quality):
-            raise ValueError(f'expected quality string, got {quality!r}')
+            raise ValueError(f'expected quality string, got {quality!r} in row {i}')
         yield Alignment(
             identifier=row[0],
             reference=row[2],
             reference_position=int(row[3])-1,
             cigar=CIGAR(row[5]),
-            sequence=Sequence(sequence),
+            sequence=sequence,
             quality=SequenceQuality(quality),
         )
 

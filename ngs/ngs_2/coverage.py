@@ -13,7 +13,7 @@ def evaluate_alignment_coverage(reference: str, alignment: str, window: int = 10
         plots[contig.identifier] = np.zeros(len(contig.sequence) + 1)
 
     for alignment in read_sam(open_with_gzip(alignment)):
-        if alignment.reference == "*":
+        if alignment.reference == "*" or alignment.sequence is None:
             continue
         for i in range(min(len(alignment.sequence), len(plots[alignment.reference]) - alignment.reference_position)):
             plots[alignment.reference][alignment.reference_position+i] += 1
